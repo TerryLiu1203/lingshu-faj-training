@@ -19,7 +19,10 @@ function buildConsumerSystemPrompt(persona, state, kbContext, availableHidden = 
 - 显性需求：${persona.explicitNeed}
 - 产品认知：${persona.awareness}
 - 沟通风格：${persona.style}
-- 已说出的开场白：${persona.opener}
+- 典型核心顾虑：${persona.opener}
+
+【开场规则】
+销售员先发起对话。你不能抢先输出固定开场白，也不要说“我刚才已经说过”。根据销售员实际问到的内容，逐步、自然地表达需求和顾虑。
 
 【隐藏信息规则】
 以下信息不可主动泄露。程序本轮允许释放的信息只有“本轮可释放信息”；每轮最多释放 1—2 条，不重复已释放信息。

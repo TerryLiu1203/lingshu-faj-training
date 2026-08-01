@@ -45,6 +45,10 @@ function checkRateLimit(req, now = Date.now()) {
 function findPersona(personaId) { return PERSONAS.find(p => p.id === personaId) || PERSONAS[0]; }
 function id(prefix, n) { return `${prefix}${String(n).padStart(2, '0')}`; }
 
+function buildSceneIntro(persona) {
+  return `顾客“${persona.name}”进入门店。${persona.identity}\n\n请你以销售专员身份主动完成接待和需求问询。顾客尚未主动说明全部需求，请不要直接推荐产品。`;
+}
+
 function createSession(personaId, maxTurns = 12) {
   const persona = findPersona(personaId);
   const session = {
@@ -56,7 +60,8 @@ function createSession(personaId, maxTurns = 12) {
     trust: persona.initialState.trust,
     intent: persona.initialState.intent,
     objectionIntensity: persona.initialState.objectionIntensity,
-    history: [{ turnId: 'C00', speaker: 'consumer', role: 'assistant', content: persona.opener, kind: 'opener' }],
+    // 开场只展示场景背景，实际对话必须由销售员先发起。
+    history: [],
     stateSnapshots: [{ turn: 0, trust: persona.initialState.trust, intent: persona.initialState.intent, emotion: persona.initialState.emotion, stage: 'opening' }],
     revealedInformationIds: [],
     triggeredObjectionIds: [],
@@ -155,7 +160,10 @@ async function handleRequest(req, res) {
   }
 
   if (pathname === '/api/personas' && req.method === 'GET') {
-    return send(res, 200, PERSONAS.map(p => ({ id:p.id, key:p.key, name:p.name, tag:p.tag, difficulty:p.difficulty, avatar:p.avatar, opener:p.opener })));
+    return send(res, 200, PERSONAS.map(p => ({
+      id:p.id, key:p.key, name:p.name, tag:p.tag, difficulty:p.difficulty,
+      avatar:p.avatar, opener:p.opener, sceneIntro:buildSceneIntro(p)
+    })));
   }
 
   if (pathname === '/api/reset' && req.method === 'POST') {
@@ -165,7 +173,12 @@ async function handleRequest(req, res) {
       const session = createSession(body.personaId, body.maxTurns);
       sessions.set(key, session);
       const persona = findPersona(session.personaId);
-      return send(res, 200, { ok:true, opener:persona.opener, persona:{ id:persona.id, key:persona.key, name:persona.name }, state:summarizeState(session) });
+      return send(res, 200, {
+        ok:true,
+        sceneIntro:buildSceneIntro(persona),
+        persona:{ id:persona.id, key:persona.key, name:persona.name },
+        state:summarizeState(session)
+      });
     } catch (error) { return send(res, 400, { error:error.message }); }
   }
 

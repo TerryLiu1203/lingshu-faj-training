@@ -6,7 +6,7 @@ const path = require('path');
 const { analyzeSalesMessage } = require('./rules');
 const { loadKB, search, getChunks } = require('./knowledge');
 const { finalizeEvaluation } = require('./evaluator-agent');
-const { checkRateLimit, rateLimits } = require('./server');
+const { checkRateLimit, rateLimits, createSession } = require('./server');
 
 function testRules() {
   const history = [{ speaker:'consumer', content:'喝这个是不是就不用打升白针了？' }];
@@ -37,15 +37,24 @@ function testScoring() {
   const session = {
     precheckFlags:[{ rule_id:'A03', level:'A', risk_points:40, sales_quote:'不用打升白针' }],
     endType:'negative', negativeReason:'compliance', endReason:'红线',
-    stateSnapshots:[{ turn:0, trust:45, intent:60, emotion:'焦虑' }], knowledgeEvidence:[]
+    stateSnapshots:[{ turn:0, trust:45, intent:60, emotion:'焦虑' }],
+    knowledgeEvidence:[{ id:'KB-T01', title:'治疗边界', content:'不能替代规范治疗。', source:'测试知识库' }]
   };
   const report = finalizeEvaluation({
     product_score:80, objection_score:75, compliance_risk:40, empathy_score:80,
-    data_quality:'sufficient', findings:[], strengths:[], priority_actions:[]
+    data_quality:'sufficient', findings:[], strengths:[], priority_actions:[],
+    memorization_points:[{ knowledge_id:'KB-T01', point:'复方阿胶浆不能替代规范治疗，应遵医嘱使用。' }]
   }, session);
   assert.strictEqual(report.complianceRisk, 40);
   assert(report.total <= 40, 'A类规则必须封顶40分');
   assert.strictEqual(report.scoreCap, 40);
+  assert.strictEqual(report.knowledgePoints.length, 1);
+  assert(/不能替代规范治疗/.test(report.knowledgePoints[0].point), '报告应输出完整必背知识点而非仅输出索引');
+}
+
+function testSalesStartsConversation() {
+  const session = createSession('FAJ-C01');
+  assert.strictEqual(session.history.length, 0, '训练对话应由销售员先发起，不能预置消费者开场白');
 }
 
 function testFrontendSyntax() {
@@ -70,6 +79,7 @@ function testRateLimit() {
 testRules();
 testKnowledge();
 testScoring();
+testSalesStartsConversation();
 testFrontendSyntax();
 testRateLimit();
 console.log('✓ 规则、知识检索、评分封顶、前端语法和IP限流测试通过');

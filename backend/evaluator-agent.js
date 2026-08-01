@@ -31,9 +31,18 @@ const EVAL_SYSTEM = `你是“灵枢智训”复方阿胶浆销售训练评价 A
   "objection_coverage":[{"objection":"异议","status":"resolved|partial|missed","evidence":"销售员原话"}],
   "inquiry_coverage":{"asked":[],"missed":[]},
   "priority_actions":["最多3项可执行建议"],
+  "memorization_points":[
+    {"knowledge_id":"必须来自下方知识库证据的ID","point":"销售员需要记住的一条完整、可复述知识点"}
+  ],
   "best_quotes":{"good":"销售员原话或空串","bad":"销售员原话或空串"},
   "summary":"简洁总结"
-}`;
+}
+
+必背知识点规则：
+- 只选择与本轮客户顾虑、销售错误或遗漏直接相关的3—6条；
+- 每条必须绑定知识库证据中真实存在的 knowledge_id；
+- point 必须写出完整知识内容和必要边界，不能只输出编号或标题；
+- 不得补充知识库之外的医学结论。`;
 
 function riskFloor(precheckFlags = []) {
   const seen = new Map();
@@ -85,6 +94,31 @@ function finalizeEvaluation(raw, session) {
   const issues = findings.slice(0, 6).map(x => `${x.rule_id ? `[${x.rule_id}] ` : ''}${x.basis || x.suggestion || '需要改进'}`);
   const suggestions = [...new Set([...rawActions, ...findings.map(x => x.suggestion).filter(Boolean)])].slice(0, 5);
 
+  const evidence = Array.isArray(session.knowledgeEvidence) ? session.knowledgeEvidence : [];
+  const evidenceById = new Map(evidence.map(item => [item.id, item]));
+  const requestedPoints = Array.isArray(raw.memorization_points) ? raw.memorization_points : [];
+  let knowledgePoints = requestedPoints
+    .map(item => {
+      const knowledgeId = String(item.knowledge_id || item.knowledgeId || '').trim();
+      const source = evidenceById.get(knowledgeId);
+      const point = String(item.point || '').trim();
+      if (!source || !point) return null;
+      return { knowledgeId, title:source.title, point, source:source.source };
+    })
+    .filter(Boolean)
+    .filter((item, index, list) => list.findIndex(x => x.knowledgeId === item.knowledgeId && x.point === item.point) === index)
+    .slice(0, 6);
+
+  // 模型评分不可用或未返回该字段时，仍给出可读的知识内容，而不是裸索引。
+  if (!knowledgePoints.length) {
+    knowledgePoints = evidence.slice(0, 5).map(item => ({
+      knowledgeId:item.id,
+      title:item.title,
+      point:String(item.content || '').replace(/\s+/g, ' ').trim().slice(0, 220),
+      source:item.source
+    }));
+  }
+
   return {
     product, objection, complianceRisk, compliance: complianceRisk, empathy, total,
     scoreFormula: '产品知识×25% + 异议应对×25% + (100-合规风险)×30% + 共情沟通×20%',
@@ -97,7 +131,8 @@ function finalizeEvaluation(raw, session) {
     issues, suggestions, priorityActions: rawActions,
     trustTrend: trend, bestQuotes: raw.best_quotes || {}, nextTraining,
     precheckFlags: session.precheckFlags || [],
-    evidenceIds: [...new Set((session.knowledgeEvidence || []).map(x => x.id))]
+    knowledgePoints,
+    evidenceIds: [...new Set(evidence.map(x => x.id))]
   };
 }
 
@@ -117,6 +152,7 @@ function fallbackEvaluation(session) {
     strengths: [], findings: [], objection_coverage: [],
     inquiry_coverage: { asked: inquiryCount ? ['对话中存在主动询问'] : [], missed: inquiryCount ? [] : ['缺少对客户情况的主动询问'] },
     priority_actions: ['围绕客户核心异议完成“确认—解释—边界—下一步”闭环。'],
+    memorization_points: [],
     best_quotes: { good: '', bad: flags[0]?.sales_quote || '' },
     summary: '评分模型不可用，已使用本地确定性规则生成保守评分；建议恢复模型后重新评价。'
   };

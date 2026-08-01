@@ -1384,6 +1384,10 @@ function syncStatus() {
     `<strong id="statusPersona">${p.key} · ${p.name}</strong> <span id="statusTag">${p.tag}</span> · 难度 ${p.diff}`;
 }
 
+function fallbackSceneIntro(p) {
+  return `顾客“${p.name}”进入门店，当前训练主题为“${p.tag}”。请你以销售专员身份主动完成接待和需求问询；顾客尚未主动说明全部需求，请不要直接推荐产品。`;
+}
+
 // ===== Chat =====
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -1421,15 +1425,13 @@ async function resetChat() {
   trainingEnded = false;
   sessionId = 's_' + Date.now();
   const p = PERSONAS[currentIdx];
-  addMsg('sys',`<strong style="color:var(--ejiao-red)">训练就绪</strong><br>当前画像：<strong>${p.key} · ${p.name}</strong>（${p.tag}）难度 ${p.diff}<br>你是<strong style="color:var(--ejiao-red)">东阿阿胶销售专员</strong>，请开始销售对话。`);
-  let opener = p.opener;
+  let sceneIntro = p.sceneIntro || fallbackSceneIntro(p);
   try {
     const resp = await fetch('/api/reset', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sessionId, personaId:p.id, maxTurns:12 }) });
     const data = await resp.json();
-    if (resp.ok && data.opener) opener = data.opener;
-  } catch (_) { /* 后端不可用时仍展示本地画像开场白 */ }
-  addMsg('agent', opener, p.name);
-  chatLog.push({role:'agent', content:opener, turnId:'C00'});
+    if (resp.ok && data.sceneIntro) sceneIntro = data.sceneIntro;
+  } catch (_) { /* 后端不可用时仍展示本地场景背景 */ }
+  addMsg('sys',`<strong style="color:var(--ejiao-red)">训练场景</strong><br>${escapeHtml(sceneIntro).replace(/\n/g,'<br>')}<br><br><strong style="color:var(--ejiao-red)">请由销售专员先发起对话。</strong>`);
   document.getElementById('chatInput').focus();
 }
 
@@ -1558,7 +1560,8 @@ async function endTraining(manual=false) {
         summary:data.summary||'',
         issues:data.issues||[], suggestions:data.suggestions||[], trustTrend:data.trustTrend||[],
         trainingResult:data.trainingResult||'', humanReview:Boolean(data.humanReview),
-        nextTraining:data.nextTraining||'', evidenceIds:data.evidenceIds||[], dataQuality:data.dataQuality||'partial'
+        nextTraining:data.nextTraining||'', knowledgePoints:data.knowledgePoints||[],
+        evidenceIds:data.evidenceIds||[], dataQuality:data.dataQuality||'partial'
       };
     } else {
       throw new Error(data.error || '评分失败');
@@ -1665,6 +1668,10 @@ function showReport(idx) {
   // 问题清单与改进建议（Kimi 评分 Agent 输出）
   const issuesHtml = (r.issues && r.issues.length) ? r.issues.map(i=>`<p style="color:#b91c1c">⚠️ ${escapeHtml(i)}</p>`).join('') : '';
   const suggHtml = (r.suggestions && r.suggestions.length) ? r.suggestions.map(i=>`<p style="color:#15803d">💡 ${escapeHtml(i)}</p>`).join('') : '';
+  const knowledgePoints = Array.isArray(r.knowledgePoints) ? r.knowledgePoints : [];
+  const knowledgeHtml = knowledgePoints.length
+    ? `<ol style="padding-left:22px;margin:8px 0;">${knowledgePoints.map(item=>`<li style="margin:0 0 10px;line-height:1.7"><strong>${escapeHtml(item.title || '必背知识点')}</strong>：${escapeHtml(item.point || '')}${item.knowledgeId ? `<br><small style="color:var(--ejiao-text-dim)">依据：${escapeHtml(item.knowledgeId)}</small>` : ''}</li>`).join('')}</ol>`
+    : (r.evidenceIds&&r.evidenceIds.length ? `<p style="color:var(--ejiao-text-dim)">该历史报告仅保存了核验索引：${r.evidenceIds.map(escapeHtml).join('、')}。完成新一轮训练后将显示完整必背知识点。</p>` : '<p style="color:var(--ejiao-text-dim)">本轮暂无可展示的知识点。</p>');
   // 信任度走势
   let trendHtml = '';
   if (r.trustTrend && r.trustTrend.length) {
@@ -1692,11 +1699,12 @@ function showReport(idx) {
     ${issuesHtml ? `<h4>🔴 存在问题</h4>${issuesHtml}` : ''}
     ${suggHtml ? `<h4>🟢 改进建议</h4>${suggHtml}` : ''}
     ${r.trainingResult ? `<h4>🎯 训练结论</h4><p><strong>${escapeHtml(r.trainingResult)}</strong>${r.humanReview?' · 建议人工复核':''}${r.nextTraining?`<br>${escapeHtml(r.nextTraining)}`:''}</p>` : ''}
-    ${r.evidenceIds&&r.evidenceIds.length ? `<h4>📚 核验知识条目</h4><p>${r.evidenceIds.map(escapeHtml).join('、')}</p>` : ''}
     <h4>💬 对话记录</h4>
     ${trans}
     <h4>📝 摘要</h4>
     <p>${escapeHtml(r.summary)}</p>
+    <h4>📚 销售人员必背知识点</h4>
+    ${knowledgeHtml}
   `;
   modal.classList.add('show');
 }

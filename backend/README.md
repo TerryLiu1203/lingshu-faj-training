@@ -54,7 +54,8 @@ node --env-file=.env server.js
 
 - 登录账号：`yejiaxin`　密码：`88888888`
 - 聊天页：选择消费者画像，输入销售话术，消费者 Agent 实时回复
-- 报告页：发送"结束训练并评分"，评分 Agent 生成四维评估报告
+- 训练开场：先展示顾客背景卡片，由销售员主动发起对话
+- 报告页：发送"结束训练并评分"，评分 Agent 生成四维评估报告，并在末尾给出有知识库依据的必背知识点
 
 ## API 说明
 
@@ -63,7 +64,7 @@ node --env-file=.env server.js
 | GET | /api/personas | 消费者画像列表 |
 | POST | /api/chat | 消费者对话，body: `{sessionId, personaId, message}` |
 | POST | /api/evaluate | 四维评分，body: `{sessionId, personaId, manual?}` |
-| POST | /api/reset | 重置会话并返回开场白，body: `{sessionId, personaId, maxTurns?}` |
+| POST | /api/reset | 重置会话并返回顾客背景说明，body: `{sessionId, personaId, maxTurns?}` |
 
 ## 配置项（.env）
 
