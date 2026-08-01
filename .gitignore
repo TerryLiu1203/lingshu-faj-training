@@ -1,0 +1,33 @@
+# 仅允许网站运行和部署所需文件进入仓库
+*
+
+!.gitignore
+!README.md
+!package.json
+!render.yaml
+
+!backend/
+backend/*
+!backend/*.js
+!backend/package.json
+!backend/README.md
+!backend/.env.example
+
+!output/
+output/*
+!output/index.html
+
+!knowledge/
+knowledge/*
+!knowledge/复方阿胶浆产品知识库_评分Agent_2026.md
+
+!提取文本/
+提取文本/*
+!提取文本/复方阿胶浆常见问题解答_妇科_2026.txt
+!提取文本/复方阿胶浆常见问题解答_肿瘤血液_2026.txt
+
+# 密钥、依赖与日志永不提交
+.env
+backend/.env
+node_modules/
+*.log

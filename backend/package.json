@@ -1,0 +1,14 @@
+{
+  "name": "lingshu-backend",
+  "version": "1.0.0",
+  "description": "灵枢智训·复方阿胶浆销售训练后端（消费者Agent + 知识库 + 评分Agent，Kimi API）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:env": "node --env-file=.env server.js",
+    "test": "node test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

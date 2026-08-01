@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: lingshu-faj-training
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/personas
+    envVars:
+      - key: KIMI_API_KEY
+        sync: false
+      - key: KIMI_MODEL
+        value: kimi-k2.6
+      - key: KIMI_BASE_URL
+        value: https://api.moonshot.cn/v1
+      - key: RATE_LIMIT_PER_MINUTE
+        value: 10

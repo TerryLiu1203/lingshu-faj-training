@@ -1,0 +1,13 @@
+{
+  "name": "lingshu-faj-sales-training",
+  "version": "1.0.0",
+  "private": true,
+  "description": "灵枢智训——复方阿胶浆销售训练智能体公开演示网站",
+  "scripts": {
+    "start": "node backend/server.js",
+    "test": "node backend/test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
